@@ -3,15 +3,29 @@ import asyncio
 # asyncio.Protocol
 TIMEOUT = 10
 
-class HTTPConnection(asyncio.Protocol):
+class Request(object):
     def __init__(self):
-        self._buffer = bytearray()
-        self._c_timeout = self._reset_c_timeout()
-        self.finished = False
         self.method = None
         self.path = None
         self.headers = {}
         self.body = None
+        self.body_raw = None
+        self.query_params = None
+
+    @property
+    def query_params(self):
+        if not self.query_params:
+            # should a property mutate an object?
+            self.query_params = self.parse_query_params(self.path)
+        return self.query_params
+
+class HTTPConnection(asyncio.Protocol):
+    def __init__(self, host, router):
+        self.router = router
+        self._buffer = bytearray()
+        self._c_timeout = self._reset_c_timeout()
+        self.finished = False
+        self.request = Request()
 
     def _reset_c_timeout(self):
         if self._c_timeout:
@@ -30,10 +44,10 @@ class HTTPConnection(asyncio.Protocol):
         self.transport.close()
 
     def start_reply(self):
+        # use Router to find correct handler and pass it to the handler
+        # along with a callback to self.write_reply.
         # stop c_timeout, extend it to like 30 secs
-        # got request_line and headers
-        # run path through Router
-        #
+
         # result = await async call handler assigned to route, pass in request values
         # OR HAVE WRITE PROTO to WRITE chunks of REPLY instead of wait for all of it
         # transport.write.result
@@ -57,7 +71,7 @@ class HTTPConnection(asyncio.Protocol):
             # still got stuff
             self._reset_c_timeout()
 
-    async def _initial_parse(self):
+    async def _parse_initial(self):
         # break intro from body
         request_boundry = self._buffer.index(b'\r\n\r\n')
         request_line_and_headers = self._buffer[:request_boundry].split(b'\r\n')
@@ -65,21 +79,16 @@ class HTTPConnection(asyncio.Protocol):
         self._buffer = self._buffer[45:]
         request_line = request_line_and_headers[0]
         # get request line
-        self.method, self.path = request_line.split(b' ')[:2]
+        self.request.method, self.request.path = request_line.split(b' ')[:2]
 
         # get headers
         for line in request_line_and_headers[1:]:
             header, value = line.split(b' ')
-            self.headers[header] = value
+            self.request.headers[header] = value
 
-        # set status, status msg, method, and headers
-        # parse status line and headers
-
-    def parse(self):
-        #if get, parse path for value
-        # if post, parse path and body
-        # parse 
+    async def _parse_body(self):
         pass
+
 
 loop = asyncio.get_event_loop()
 server = loop.create_server(proto,
