@@ -9,7 +9,7 @@
 
 
 # headers and body
-def home(r):
+async def home(r):
     rsp = Response()
     rsp.set_header('Content-Type', 'text/html')
     rsp.body = b'<html><body><b>test</b></body></html>'
@@ -17,11 +17,11 @@ def home(r):
 
 
 # get route + params
-def welcome(r):
+async def welcome(r):
     return "Welcome {}".format(arg1)
 
 # post route + body param
-def parse_form(r):
+async def parse_form(r):
     if r.method == 'GET':
         return 'form'
     else:
@@ -32,8 +32,8 @@ def parse_form(r):
 
 ## application = router + http server
 
-app = Application()
-app.add_routes({
+router = Router()
+router.add_routes({
     r'/': home,
     r'/welcome/{name}': welcome,
     r'/login': parse_form})
