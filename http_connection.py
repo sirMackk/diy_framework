@@ -15,12 +15,21 @@ class Request(object):
         self.query_params = None
         self.finished = False
 
-    @property
-    def query_params(self):
-        if not self.query_params:
-            # should a property mutate an object?
-            self.query_params = self.parse_query_params(self.path)
-        return self.query_params
+    def parse_head(self, request_line_and_headers):
+        request_line = request_line_and_headers[0]
+        # get request line
+        self.method, self.path = request_line.split(b' ')[:2]
+
+        # parse query params
+        self.query_params = self.parse_query_params(self.path)
+
+        # parse headers
+        for line in request_line_and_headers[1:]:
+            header, value = line.split(b' ')
+            self.headers[header] = value
+
+    def parse_query_params(self):
+        pass
 
 class Response(object):
     def __init__(self, code=200, body=b'', **kwargs):
@@ -82,41 +91,34 @@ class HTTPConnection(asyncio.Protocol):
 
 
     def data_received(self, data):
-        # add ability to handle requests with bodies ie.
-        # ones that call this function multiple times.
-        # possibility: wait for content-length header
-        # receive until content-length
+        # HTTPConnection should know about crlf, Request should.
+        # This should be redone so that HTTPConnection only knows
+        # about terminators n stuff.
         self._buffer.extend(data)
         if b'\x0d\x0a\x0d\x0a' in data:
             # got end of headers
-            ## get content-length
             request = self._initial_parse()
             if request.finished:
                 self._cancel_c_timeout()
                 self.reply(request)
-            else:
-                self._reset_c_timeout()
         else:
-            # still got stuff
+            # wait for more stuff
             self._reset_c_timeout()
 
     async def _parse_initial(self):
+        # HTTPConnection should have knowledge of crlf and other request
+        # specific items. All of this should be moved into Request.
         request = Request()
         # break intro from body
         request_boundry = self._buffer.index(b'\r\n\r\n')
         request_line_and_headers = self._buffer[:request_boundry].split(b'\r\n')
+
+        request.parse_head(request_line_and_headers)
         # remove intro from buffer
-        self._buffer = self._buffer[45:]
-        request_line = request_line_and_headers[0]
-        # get request line
-        request.method, request.path = request_line.split(b' ')[:2]
+        self._buffer = self._buffer[request_boundry:]
 
-        # get headers
-        for line in request_line_and_headers[1:]:
-            header, value = line.split(b' ')
-            request.headers[header] = value
-
-        # false if waiting for request body
+        # false if waiting for request body.
+        # move into request later
         request.finished = True
 
         return request
