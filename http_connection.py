@@ -17,9 +17,9 @@ class Request(object):
         self.body = None
         self.body_raw = None
         self.query_params = {}
+        self.finished = False
 
     def parse(self, buffer):
-        # add body parsing logic, based on content-length header
         if Request.separator in buffer:
             # got end of headers
             request_boundry = buffer.index(Request.separator)
@@ -27,40 +27,45 @@ class Request(object):
 
             self.parse_head(request_line_and_headers)
             # remove intro from buffer
-            buffer = buffer[request_boundry:]
+            buffer = buffer[request_boundry+4:].strip()
 
             # tmp
-            if not b'content-length' in self.headers.keys():
-                request.finished = True
-        elif b'content-length' in self.headers.keys():
-            if len(buffer) == int(self.headers[b'content-length']):
+            if not 'content-length' in self.headers:
+                self.finished = True
+
+        if 'content-length' in self.headers:
+            if len(buffer) == int(self.headers['content-length']):
                 self.parse_body(buffer)
                 del buffer[:]
+                self.finished = True
         return buffer
 
     def parse_head(self, request_line_and_headers):
         request_line = request_line_and_headers[0]
         # parse the request line
-        self.method, self.path = request_line.split(b' ')[:2]
+        self.method, path_line = request_line.split(b' ')[:2]
 
-        if b'?' in self.path:
-            self.parse_query_params(self.path)
+        url_obj = parse.urlparse(path_line)
+        self.path = url_obj.path
+
+        if url_obj.query:
+            self.parse_query_params(url_obj)
 
         # parse headers
         for line in request_line_and_headers[1:]:
-            header, value = line.split(b' ')
-            self.headers[header.lower()[:-1]] = value
+            header, value = line.strip().split(b' ')
+            header = header.decode('utf-8').lower()[:-1]
+            self.headers[header] = value.decode('utf-8')
 
     def parse_body(self, buffer):
-        self.raw_body = buffer
-        content_type = self.headers.get(b'content-type', '')
+        self.body_raw = buffer[:]
+        content_type = self.headers.get('content-type', '')
         if content_type == 'application/x-www-form-urlencoded':
-            self.body = parse.parse_qs(self.raw_body)
+            self.body = parse.parse_qs(self.body_raw)
         elif content_type == 'application/json':
-            self.body = json.dumps(self.raw_body)
+            self.body = json.dumps(self.body_raw)
 
-    def parse_query_params(self):
-        url_obj = parse.urlparse(self.path)
+    def parse_query_params(self, url_obj):
         self.query_params = parse.parse_qs(url_obj.query)
 
 class Response(object):
@@ -89,16 +94,16 @@ class Response(object):
             self.code, self.reason_phrases[self.code])
         self.headers = {**self.headers, **{'Content-Length': len(self.body)}}
         headers = '\r\n'.join(
-            [': '.join(k, v) for k, v in self.headers.items()])
-        return b'\r\n'.join(
-            [response_line.encode(), self.headers, b'\r\n', self.body])
+            [': '.join([k, str(v)]) for k, v in self.headers.items()])
+        return '\r\n'.join(
+            [response_line, headers, '\r\n', self.body])
 
     def to_bytes(self):
         return self._build_response().encode()
 
 
 class HTTPConnection(asyncio.Protocol):
-    def __init__(self, host, router):
+    def __init__(self, router):
         self.router = router
         self._buffer = bytearray()
         self._c_timeout = self._reset_c_timeout()
@@ -132,7 +137,7 @@ class HTTPConnection(asyncio.Protocol):
         self.request = None
         try:
             handler = self.router.get_handler(request)
-            response = await handler.handle(request)
+            response = handler.handle(request)
 
             if not isinstance(response, Response):
                 response = Response(code=200, body=response)
@@ -153,19 +158,19 @@ class HTTPConnection(asyncio.Protocol):
             self._reset_c_timeout()
 
 
-loop = asyncio.get_event_loop()
-server = loop.create_server(proto,
-                            host=host,
-                            port=80,
-                            reuse_address=True,
-                            reuse_port=True)
+# loop = asyncio.get_event_loop()
+# server = loop.create_server(lambda: HTTPConnection,
+                            # host='127.0.0.1',
+                            # port=80,
+                            # reuse_address=True,
+                            # reuse_port=True)
 
-transport, protocol = loop.run_until_complete(server)
+# transport, protocol = loop.run_until_complete(server)
 
-try:
-    loop.run_forever()
-except KeyboardInterrupt:
-    pass
+# try:
+    # loop.run_forever()
+# except KeyboardInterrupt:
+    # pass
 
-loop.close()
-transport.close()
+# loop.close()
+# transport.close()
