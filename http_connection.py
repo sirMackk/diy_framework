@@ -1,10 +1,14 @@
 import asyncio
+from urllib import parse
 
 # asyncio.Protocol
 TIMEOUT = 5
 RESPONSE_TIMEOUT = 10
 
 class Request(object):
+    crlf = b'\x0d\x0a'
+    separator = b'\x0d\x0a\x0d\x0a'
+
     def __init__(self):
         self.method = None
         self.path = None
@@ -12,24 +16,52 @@ class Request(object):
         self.headers = {}
         self.body = None
         self.body_raw = None
-        self.query_params = None
-        self.finished = False
+        self.query_params = {}
+
+    def parse(self, buffer):
+        # add body parsing logic, based on content-length header
+        if Request.separator in buffer:
+            # got end of headers
+            request_boundry = buffer.index(Request.separator)
+            request_line_and_headers = buffer[:request_boundry].split(Request.crlf)
+
+            self.parse_head(request_line_and_headers)
+            # remove intro from buffer
+            buffer = buffer[request_boundry:]
+
+            # tmp
+            if not b'content-length' in self.headers.keys():
+                request.finished = True
+        elif b'content-length' in self.headers.keys():
+            if len(buffer) == int(self.headers[b'content-length']):
+                self.parse_body(buffer)
+                del buffer[:]
+        return buffer
 
     def parse_head(self, request_line_and_headers):
         request_line = request_line_and_headers[0]
-        # get request line
+        # parse the request line
         self.method, self.path = request_line.split(b' ')[:2]
 
-        # parse query params
-        self.query_params = self.parse_query_params(self.path)
+        if b'?' in self.path:
+            self.parse_query_params(self.path)
 
         # parse headers
         for line in request_line_and_headers[1:]:
             header, value = line.split(b' ')
-            self.headers[header] = value
+            self.headers[header.lower()[:-1]] = value
+
+    def parse_body(self, buffer):
+        self.raw_body = buffer
+        content_type = self.headers.get(b'content-type', '')
+        if content_type == 'application/x-www-form-urlencoded':
+            self.body = parse.parse_qs(self.raw_body)
+        elif content_type == 'application/json':
+            self.body = json.dumps(self.raw_body)
 
     def parse_query_params(self):
-        pass
+        url_obj = parse.urlparse(self.path)
+        self.query_params = parse.parse_qs(url_obj.query)
 
 class Response(object):
     def __init__(self, code=200, body=b'', **kwargs):
@@ -44,7 +76,7 @@ class Response(object):
         # generate body
         pass
 
-    def __repr__(self):
+    def to_bytes(self):
         pass
 
 
@@ -53,7 +85,7 @@ class HTTPConnection(asyncio.Protocol):
         self.router = router
         self._buffer = bytearray()
         self._c_timeout = self._reset_c_timeout()
-        self.finished = False
+        self.request = Request()
 
     def _reset_c_timeout(self, timeout=TIMEOUT):
         self._cancel_c_timeout()
@@ -67,6 +99,7 @@ class HTTPConnection(asyncio.Protocol):
     def close_connection(self):
         self._cancel_c_timeout()
         self.transport.close()
+        self.transport = None
 
     def connection_made(self, transport):
         self.transport = transport
@@ -78,6 +111,8 @@ class HTTPConnection(asyncio.Protocol):
         self.transport.write(data)
 
     def reply(self):
+        request = self.request
+        self.request = None
         try:
             handler = self.router.get_handler(request)
             response = await handler.handle(request)
@@ -86,45 +121,19 @@ class HTTPConnection(asyncio.Protocol):
                 response = Response(code=200, body=response)
         except NotFoundException:
             response = Response(code=404, body=b'Not Found')
-        self.write_reply(response)
+        self.write_reply(response.to_bytes())
         self.close_connection()
 
 
     def data_received(self, data):
-        # HTTPConnection should know about crlf, Request should.
-        # This should be redone so that HTTPConnection only knows
-        # about terminators n stuff.
         self._buffer.extend(data)
-        if b'\x0d\x0a\x0d\x0a' in data:
-            # got end of headers
-            request = self._initial_parse()
-            if request.finished:
-                self._cancel_c_timeout()
-                self.reply(request)
+        self._buffer = self.request.parse(self._buffer)
+        if self.request.finished:
+            self._cancel_c_timeout()
+            self.reply()
         else:
             # wait for more stuff
             self._reset_c_timeout()
-
-    async def _parse_initial(self):
-        # HTTPConnection should have knowledge of crlf and other request
-        # specific items. All of this should be moved into Request.
-        request = Request()
-        # break intro from body
-        request_boundry = self._buffer.index(b'\r\n\r\n')
-        request_line_and_headers = self._buffer[:request_boundry].split(b'\r\n')
-
-        request.parse_head(request_line_and_headers)
-        # remove intro from buffer
-        self._buffer = self._buffer[request_boundry:]
-
-        # false if waiting for request body.
-        # move into request later
-        request.finished = True
-
-        return request
-
-    async def _parse_body(self):
-        pass
 
 
 loop = asyncio.get_event_loop()
