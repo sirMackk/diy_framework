@@ -2,6 +2,8 @@ import re
 import json
 from urllib import parse
 
+from exceptions import BadRequestException
+
 
 CRLF = b'\x0d\x0a'
 SEPARATOR = CRLF + CRLF
@@ -10,8 +12,8 @@ SUPPORTED_METHODS = [
     b'GET',
     b'POST',
 ]
-REQUEST_LINE_REGEXP = re.compile(br'(%s) [A-Z0-9.?_\[\]=&-\\]+ http/%s' % (
-    b'|'.join(SUPPORTED_METHODS), HTTP_VERSION), flags=re.IGNORECASE)
+REQUEST_LINE_REGEXP = re.compile(br'[a-z]+ [a-z0-9.?_\[\]=&-\\]+ http/%s' %
+                                 (HTTP_VERSION), flags=re.IGNORECASE)
 
 
 def parse_into(request, buffer):
@@ -50,6 +52,9 @@ def can_parse_headers(buffer):
 def parse_request_line(buffer):
     request_line = buffer.split(CRLF)[0]
     method, raw_path = request_line.split(b' ')[:2]
+    if method not in SUPPORTED_METHODS:
+        raise BadRequestException('{} method not supported'.format(method))
+
     path, query_params = parse_query_params(raw_path)
     return method, path, query_params
 
