@@ -91,7 +91,7 @@ class HTTPConnection(asyncio.Protocol):
     def reply(self):
         request = self.request
         self.request = None
-        handler = self.router.get_handler(request)
+        handler = yield from self.router.get_handler(request)
         response = handler.handle(request)
 
         if not isinstance(response, Response):

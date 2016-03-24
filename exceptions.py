@@ -3,4 +3,12 @@ class DiyFrameworkException(Exception):
 
 
 class NotFoundException(DiyFrameworkException):
+    code = 404
+
+
+class BadRequestException(DiyFrameworkException):
+    code = 400
+
+
+class DuplicateRoute(DiyFrameworkException):
     pass
