@@ -1,6 +1,7 @@
 import asyncio
 
 import http_parser
+from exceptions import DiyFrameworkException
 
 # asyncio.Protocol
 TIMEOUT = 5
@@ -53,7 +54,7 @@ class Response(object):
 
 
 class HTTPConnection(asyncio.Protocol):
-    def __init__(self, http_parser, router):
+    def __init__(self, router, http_parser):
         self.http_parser = http_parser
         self.router = router
         self._buffer = bytearray()
@@ -117,19 +118,47 @@ class HTTPConnection(asyncio.Protocol):
             self.error_reply(500, body=Response.reason_phrases[500])
 
 
-# loop = asyncio.get_event_loop()
-# server = loop.create_server(lambda: HTTPConnection,
-                            # host='127.0.0.1',
-                            # port=80,
-                            # reuse_address=True,
-                            # reuse_port=True)
+class Application(object):
+    def __init__(self, router, host='127.0.0.1', port=8080, http_parser=http_parser):
+        # create ip address class
+        self.router = router
+        self.http_parser = http_parser
+        self.host = host
+        self.port = port
+        self._server = None
+        self._transport = None
+        self._loop = None
 
-# transport, protocol = loop.run_until_complete(server)
+    def start_server(self):
+        if not self._server:
+            self.loop = asyncio.get_event_loop()
+            self.server = loop.create_server(
+                lambda: HTTPConnection(self.router, self.http_parser)
+                host=self.host,
+                port=port,
+                reuse_address=True,
+                reuse_port=True)
+            self.transport, _ = self.loop.run_until_complete(self.server)
 
-# try:
-    # loop.run_forever()
-# except KeyboardInterrupt:
-    # pass
+            try:
+                self.loop.run_forever()
+            except KeyboardInterrupt:
+                print("Got ctrl-c sig, killing server")
+            except DiyFrameworkException as e:
+                print("Framework failed:")
+                print(e.__traceback__)
+            finally:
+                self.loop.close()
+                self.transport.close()
+        else:
+            print("Server already started - {0}".format(self))
 
-# loop.close()
-# transport.close()
+    def __repr__(self):
+        cls = self.__class__
+        if self._server:
+            return "{0} - Listening on: {1}:{2}".format(
+                cls,
+                self.host,
+                self.port)
+        else:
+            return "{0} - Not started".format(cls)
