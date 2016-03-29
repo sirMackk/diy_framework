@@ -1,56 +1,10 @@
 import asyncio
 
-import http_parser
-from exceptions import DiyFrameworkException
+from http_utils import Request, Response
 
-# asyncio.Protocol
+
 TIMEOUT = 5
 RESPONSE_TIMEOUT = 10
-
-class Request(object):
-    def __init__(self):
-        self.method = None
-        self.path = None
-        self.query_params = {}
-        self.path_params = {}
-        self.headers = {}
-        self.body = None
-        self.body_raw = None
-        self.finished = False
-
-
-class Response(object):
-    reason_phrases = {
-        200: 'OK',
-        204: 'No Content',
-        301: 'Moved Permanently',
-        302: 'Found',
-        304: 'Not Modified',
-        400: 'Bad Request',
-        401: 'Unauthorized',
-        403: 'Forbidden',
-        404: 'Not Found',
-        451: 'Unavailable for Legal Reasons',
-        500: 'Internal Server Error',
-    }
-
-    def __init__(self, code=200, body=b'', **kwargs):
-        self.code = code
-        self.body = body
-        self.headers = kwargs.get('headers', {})
-        self.headers['content-type'] = kwargs.get('content_type', 'text/html')
-
-    def _build_response(self):
-        response_line = 'HTTP/1.1 {0} {1}'.format(
-            self.code, self.reason_phrases[self.code])
-        self.headers = {**self.headers, **{'Content-Length': len(self.body)}}
-        headers = '\r\n'.join(
-            [': '.join([k, str(v)]) for k, v in self.headers.items()])
-        return '\r\n'.join(
-            [response_line, headers, '\r\n', self.body])
-
-    def to_bytes(self):
-        return self._build_response().encode()
 
 
 class HTTPConnection(asyncio.Protocol):
@@ -116,49 +70,3 @@ class HTTPConnection(asyncio.Protocol):
             self.error_reply(e.code, body=Response.reason_phrases[e.code])
         except Exception:
             self.error_reply(500, body=Response.reason_phrases[500])
-
-
-class Application(object):
-    def __init__(self, router, host='127.0.0.1', port=8080, http_parser=http_parser):
-        # create ip address class
-        self.router = router
-        self.http_parser = http_parser
-        self.host = host
-        self.port = port
-        self._server = None
-        self._transport = None
-        self._loop = None
-
-    def start_server(self):
-        if not self._server:
-            self.loop = asyncio.get_event_loop()
-            self.server = loop.create_server(
-                lambda: HTTPConnection(self.router, self.http_parser),
-                host=self.host,
-                port=port,
-                reuse_address=True,
-                reuse_port=True)
-            self.transport, _ = self.loop.run_until_complete(self.server)
-
-            try:
-                self.loop.run_forever()
-            except KeyboardInterrupt:
-                print("Got ctrl-c sig, killing server")
-            except DiyFrameworkException as e:
-                print("Framework failed:")
-                print(e.__traceback__)
-            finally:
-                self.loop.close()
-                self.transport.close()
-        else:
-            print("Server already started - {0}".format(self))
-
-    def __repr__(self):
-        cls = self.__class__
-        if self._server:
-            return "{0} - Listening on: {1}:{2}".format(
-                cls,
-                self.host,
-                self.port)
-        else:
-            return "{0} - Not started".format(cls)
