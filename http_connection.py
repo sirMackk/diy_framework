@@ -133,7 +133,7 @@ class Application(object):
         if not self._server:
             self.loop = asyncio.get_event_loop()
             self.server = loop.create_server(
-                lambda: HTTPConnection(self.router, self.http_parser)
+                lambda: HTTPConnection(self.router, self.http_parser),
                 host=self.host,
                 port=port,
                 reuse_address=True,
