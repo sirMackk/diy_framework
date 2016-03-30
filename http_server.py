@@ -8,11 +8,33 @@ from exceptions import BadRequestException, NotFoundException, TimeoutException
 TIMEOUT = 5
 
 
+class HTTPServer(object):
+    def __init__(self, router, http_parser, loop):
+        logging.info('initing server')
+        self.router = router
+        self.http_parser = http_parser
+        self.loop = loop
+        self.connections = set()
+
+    async def handle_connection(self, reader, writer):
+        connection = HTTPConnection(self, reader, writer)
+        # handle connection close here? exception, or future?
+        # or await ensure_future, then remove connection?
+        self.connections.add(connection)
+
+        asyncio.ensure_future(connection.handle_request(), loop=self.loop)
+
+    async def remove_connection(self, conn):
+        self.connections.remove(conn)
+
+
 class HTTPConnection(object):
     def __init__(self, http_server, reader, writer):
         self.router = http_server.router
         self.http_parser = http_server.http_parser
         self.loop = http_server.loop
+        self._close_cb = http_server.remove_connection
+
         self._reader = reader
         self._writer = writer
         self._buffer = bytearray()
@@ -20,7 +42,6 @@ class HTTPConnection(object):
         self.request = Request()
 
         logging.info('initing connection')
-        asyncio.ensure_future(self.handle_request(), loop=self.loop)
 
     async def handle_request(self):
         await asyncio.sleep(3)
@@ -39,6 +60,8 @@ class HTTPConnection(object):
                 logging.error(e.__traceback__)
                 self.request.finished = True
                 self.error_reply(500, body=Response.reason_phrases[500])
+        if not self.request.finished:
+            await self.reply()
         self.close_connection()
 
 
@@ -49,13 +72,10 @@ class HTTPConnection(object):
         self._buffer = self.http_parser.parse_into(
             self.request, self._buffer)
 
-        logging.info('request finished')
-        await self.reply()
-        logging.info('replied?')
-
     def close_connection(self):
         logging.info("closing connection")
         self._cancel_c_timeout()
+        self._close_cb(self)
         self._writer.close()
 
     def error_reply(self, code, body=''):
@@ -76,7 +96,6 @@ class HTTPConnection(object):
         if not isinstance(response, Response):
             response = Response(code=200, body=response)
 
-        request.finished = True
         self._writer.write(response.to_bytes())
         await self._writer.drain()
 
@@ -93,15 +112,3 @@ class HTTPConnection(object):
         logging.info('cancelling timeout')
         if self._c_timeout:
             self._c_timeout.cancel()
-
-class HTTPServer(object):
-    def __init__(self, router, http_parser, loop):
-        logging.info('initing server')
-        self.router = router
-        self.http_parser = http_parser
-        self.loop = loop
-        self.connections = set()
-
-    async def handle_connection(self, reader, writer):
-        connection = HTTPConnection(self, reader, writer)
-        self.connections.add(connection)

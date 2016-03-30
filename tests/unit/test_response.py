@@ -1,6 +1,6 @@
 import unittest as t
 
-from http_connection import Response
+from http_utils import Response
 
 
 class TestResponse(t.TestCase):

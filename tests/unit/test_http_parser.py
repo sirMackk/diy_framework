@@ -1,7 +1,7 @@
 import unittest as t
 
 import http_parser
-from http_connection import Request
+from http_utils import Request
 
 # add more edge case tests
 
@@ -16,6 +16,14 @@ class TestHTTPParser(t.TestCase):
             ('POST /test.html HTTP/1.1\r\n'
              'Content-Type: application/x-www-form-urlencoded\r\n'
              'Content-Length: 10\r\n\r\n12=45&78=9'), encoding='ascii')
+
+    def test_short_get_parse(self):
+        r = Request()
+        short_get = bytearray('gEt / http/1.1\r\n\r\n', encoding='utf-8')
+        http_parser.parse_into(r, short_get)
+        self.assertTrue(r.finished)
+        self.assertEqual(r.path, '/')
+        self.assertDictEqual(r.headers, {})
 
     def test_get_parse(self):
         r = Request()

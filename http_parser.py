@@ -52,7 +52,7 @@ def can_parse_headers(buffer):
 def parse_request_line(buffer):
     request_line = buffer.split(CRLF)[0]
     method, raw_path = request_line.split(b' ')[:2]
-    if method not in SUPPORTED_METHODS:
+    if method.upper() not in SUPPORTED_METHODS:
         raise BadRequestException('{} method not supported'.format(method))
 
     path, query_params = parse_query_params(raw_path)
@@ -99,7 +99,7 @@ def get_body_parser(content_type):
 
 def remove_request_line(buffer):
     first_line_end = buffer.index(CRLF)
-    del buffer[:first_line_end + len(CRLF)]
+    del buffer[:first_line_end]
 
 
 def remove_intro(buffer):
