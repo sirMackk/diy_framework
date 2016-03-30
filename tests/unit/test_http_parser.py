@@ -21,7 +21,7 @@ class TestHTTPParser(t.TestCase):
         r = Request()
         http_parser.parse_into(r, self.get_r)
         self.assertTrue(r.finished)
-        self.assertEqual(r.path, b'/test.html')
+        self.assertEqual(r.path, '/test.html')
         self.assertEqual(r.query_params, {b'test': [b'1']})
         self.assertEqual(r.headers, {'content-type': 'text'})
 

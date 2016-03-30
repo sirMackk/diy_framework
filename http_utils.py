@@ -1,3 +1,9 @@
+def utf8_bytes(text):
+    if not isinstance(text, bytes):
+        return text.encode('utf-8')
+    return text
+
+
 class Request(object):
     def __init__(self):
         self.method = None
@@ -31,16 +37,17 @@ class Response(object):
         self.headers = kwargs.get('headers', {})
         self.headers['content-type'] = kwargs.get('content_type', 'text/html')
 
-    def _build_response(self):
+    def _build_response(self, encoding_fn=utf8_bytes):
         response_line = 'HTTP/1.1 {0} {1}'.format(
             self.code, self.reason_phrases[self.code])
         self.headers = {**self.headers, **{'Content-Length': len(self.body)}}
         headers = '\r\n'.join(
             [': '.join([k, str(v)]) for k, v in self.headers.items()])
-        return '\r\n'.join(
-            [response_line, headers, '\r\n', self.body])
+        return b'\r\n'.join(map(
+            encoding_fn, [response_line, headers, '\r\n', self.body]))
+
+    def set_header(self, header, value=b''):
+        self.headers[header] = value
 
     def to_bytes(self):
-        return self._build_response().encode()
-
-
+        return self._build_response()

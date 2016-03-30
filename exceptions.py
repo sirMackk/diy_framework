@@ -12,3 +12,7 @@ class BadRequestException(DiyFrameworkException):
 
 class DuplicateRoute(DiyFrameworkException):
     pass
+
+
+class TimeoutException(DiyFrameworkException):
+    code = 500

@@ -1,3 +1,4 @@
+import logging
 import re
 
 from exceptions import NotFoundException, DuplicateRoute
@@ -29,6 +30,7 @@ class Router(object):
             raise DuplicateRoute
 
     def get_handler(self, path):
+        logging.info('path %s' % path)
         for route, handler in self.routes.items():
             path_params = self.__class__.match_path(route, path)
             if path_params is not None:
@@ -47,6 +49,7 @@ class Router(object):
 
     @classmethod
     def match_path(cls, route, path):
+        logging.info(path)
         match = route.match(path)
         try:
             return match.groupdict()

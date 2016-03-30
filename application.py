@@ -1,9 +1,17 @@
 import asyncio
-
+import logging
 
 import http_parser
-from http_connection import HTTPConnection
+from http_connection import HTTPServer
 from exceptions import DiyFrameworkException
+
+logging_config = {
+    'format': '%(asctime)s [%(levelname)s] %(message)s',
+    'level': logging.DEBUG,
+    'filename': None
+}
+
+logging.basicConfig(**logging_config)
 
 
 class Application(object):
@@ -18,36 +26,39 @@ class Application(object):
         self.host = host
         self.port = port
         self._server = None
-        self._transport = None
+        self._connection_handler = None
         self._loop = None
 
     def start_server(self):
         if not self._server:
             self.loop = asyncio.get_event_loop()
-            self.server = self.loop.create_server(
-                lambda: HTTPConnection(self.router, self.http_parser),
+            self._server = HTTPServer(self.router, self.http_parser, self.loop)
+            self._connection_handler = asyncio.start_server(
+                self._server.handle_connection,
                 host=self.host,
                 port=self.port,
                 reuse_address=True,
-                reuse_port=True)
-            self.transport, _ = self.loop.run_until_complete(self.server)
+                reuse_port=True,
+                loop=self.loop)
+
+            logging.info("starting server")
+            self.loop.run_until_complete(self._connection_handler)
 
             try:
                 self.loop.run_forever()
             except KeyboardInterrupt:
-                print("Got ctrl-c sig, killing server")
+                logging.info("Got ctrl-c sig, killing server")
             except DiyFrameworkException as e:
-                print("Framework failed:")
-                print(e.__traceback__)
+                logging.error("Framework failed:")
+                logging.error(e.__traceback__)
             finally:
                 self.loop.close()
-                self.transport.close()
         else:
-            print("Server already started - {0}".format(self))
+            logging.info("Server already started - {0}".format(self))
 
     def __repr__(self):
         cls = self.__class__
-        if self._server:
+        if self._connection_handler:
             return "{0} - Listening on: {1}:{2}".format(
                 cls,
                 self.host,

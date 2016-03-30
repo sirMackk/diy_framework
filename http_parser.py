@@ -56,7 +56,7 @@ def parse_request_line(buffer):
         raise BadRequestException('{} method not supported'.format(method))
 
     path, query_params = parse_query_params(raw_path)
-    return method, path, query_params
+    return method, path.decode('utf-8'), query_params
 
 
 def parse_query_params(raw_path):
