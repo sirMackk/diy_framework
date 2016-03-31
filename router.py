@@ -45,7 +45,7 @@ class Router(object):
             return '(?P<{0}>[a-zA-Z0-9_-]+)'.format(matchobj.group(1))
 
         re_str = re.sub(r'{([a-zA-Z0-9_-]+)}', named_groups, regexp_str)
-        return re.compile(re_str)
+        return re.compile('^' + re_str + '$')
 
     @classmethod
     def match_path(cls, route, path):

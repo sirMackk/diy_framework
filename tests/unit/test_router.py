@@ -19,7 +19,7 @@ class TestRouter(t.TestCase):
 
     def test_transform_route_into_regexp(self):
         route = r'/path/{id}'
-        expected_regexp_str = r'/path/(?P<id>[a-zA-Z0-9_-]+)'
+        expected_regexp_str = r'^/path/(?P<id>[a-zA-Z0-9_-]+)$'
         regexp_obj = self.router.build_regexp(route)
         self.assertEqual(expected_regexp_str, regexp_obj.pattern)
 
@@ -76,6 +76,17 @@ class TestRouter(t.TestCase):
         self.assertTupleEqual(
             (request, ['12']),
             response)
+
+    def test_route_precedence_matching(self):
+        route1 = r'/'
+        route2 = r'/welcome/{name}'
+        path = '/welcome/bob'
+        handler2 = lambda r, name: name
+        self.router.add_routes({route1: self.handler, route2: handler2})
+        wrapped_handler = self.router.get_handler(path)
+        response = yield from wrapped_handler.handle('request')
+        self.assertEqual(response, 'bob')
+
 
 if __name__ == '__main__':
     t.main()
