@@ -1,3 +1,5 @@
+from router import Router
+from application import Application
 ### HELLO WORLD
 #
 # headers
@@ -9,10 +11,12 @@
 
 
 # headers and body
+from http_utils import Response
+
 async def home(r):
     rsp = Response()
     rsp.set_header('Content-Type', 'text/html')
-    rsp.body = b'<html><body><b>test</b></body></html>'
+    rsp.body = '<html><body><b>test</b></body></html>'
     return rsp
 
 
@@ -39,3 +43,5 @@ router.add_routes({
     r'/login': parse_form})
 
 # add app to loop?
+app = Application(router)
+app.start_server()

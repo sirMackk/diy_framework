@@ -71,8 +71,8 @@ def parse_headers(buffer):
     headers_iter = (line for line in buffer[:headers_end].split(CRLF) if line)
     headers = {}
     for line in headers_iter:
-        header, value = line.strip().split(b' ')[:2]
-        header = header.decode('utf-8').lower()[:-1]
+        header, value = [i.strip() for i in line.strip().split(b':')[:2]]
+        header = header.decode('utf-8').lower()
         headers[header] = value.decode('utf-8')
     return headers
 
@@ -84,7 +84,8 @@ def can_parse_body(headers, buffer):
 
 def parse_body(headers, buffer):
     body_raw = buffer[:]
-    content_type = headers.get('content-type', '')
+    content_type = headers.get(
+        'content-type', 'application/x-www-form-urlencoded')
     parser = get_body_parser(content_type)
     body = parser(body_raw)
     return body_raw, body

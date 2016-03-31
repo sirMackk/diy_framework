@@ -43,8 +43,9 @@ class Response(object):
         self.headers = {**self.headers, **{'Content-Length': len(self.body)}}
         headers = '\r\n'.join(
             [': '.join([k, str(v)]) for k, v in self.headers.items()])
+        headers += '\r\n'
         return b'\r\n'.join(map(
-            encoding_fn, [response_line, headers, '\r\n', self.body]))
+            encoding_fn, [response_line, headers, self.body]))
 
     def set_header(self, header, value=b''):
         self.headers[header] = value

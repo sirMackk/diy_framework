@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 import http_parser
-from http_connection import HTTPServer
+from http_server import HTTPServer
 from exceptions import DiyFrameworkException
 
 logging_config = {

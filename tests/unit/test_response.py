@@ -22,7 +22,8 @@ class TestResponse(t.TestCase):
         from re import MULTILINE, match
         byte_r = self.r.to_bytes()
         match_obj = match(
-            br'[a-zA-Z0-9/.\r\n:\s-]+\r\n\r\n' + self.body.encode(),
+            (br'HTTP/1.1 [0-9]{3} [A-Z]+\r\n[a-zA-Z0-9:\/\s-]+'
+             br'\r\n[a-zA-Z0-9:\/\s-]+\r\n\r\n') + self.body.encode(),
             byte_r,
             flags=MULTILINE)
         self.assertIsNotNone(match_obj)
