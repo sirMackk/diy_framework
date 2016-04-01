@@ -9,8 +9,8 @@ CRLF = b'\x0d\x0a'
 SEPARATOR = CRLF + CRLF
 HTTP_VERSION = b'1.1'
 SUPPORTED_METHODS = [
-    b'GET',
-    b'POST',
+    'GET',
+    'POST',
 ]
 REQUEST_LINE_REGEXP = re.compile(br'[a-z]+ [a-z0-9.?_\[\]=&-\\]+ http/%s' %
                                  (HTTP_VERSION), flags=re.IGNORECASE)
@@ -50,13 +50,14 @@ def can_parse_headers(buffer):
 
 
 def parse_request_line(buffer):
-    request_line = buffer.split(CRLF)[0]
-    method, raw_path = request_line.split(b' ')[:2]
-    if method.upper() not in SUPPORTED_METHODS:
+    request_line = buffer.split(CRLF)[0].decode('utf-8')
+    method, raw_path = request_line.split(' ')[:2]
+    method = method.upper()
+    if method not in SUPPORTED_METHODS:
         raise BadRequestException('{} method not supported'.format(method))
 
     path, query_params = parse_query_params(raw_path)
-    return method, path.decode('utf-8'), query_params
+    return method, path, query_params
 
 
 def parse_query_params(raw_path):
@@ -88,7 +89,8 @@ def parse_body(headers, buffer):
         'content-type', 'application/x-www-form-urlencoded')
     parser = get_body_parser(content_type)
     body = parser(body_raw)
-    return body_raw, body
+    utf_8_body = byte_kv_to_utf8(body)
+    return body_raw, utf_8_body
 
 
 def get_body_parser(content_type):
@@ -96,6 +98,12 @@ def get_body_parser(content_type):
         return parse.parse_qs
     elif content_type == 'application/json':
         return json.dumps
+
+
+def byte_kv_to_utf8(kv):
+    return {
+        k.decode('utf-8'): [val.decode('utf-8') for val in v]
+        for k, v in kv.items()}
 
 
 def remove_request_line(buffer):

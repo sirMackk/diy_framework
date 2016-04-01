@@ -1,16 +1,5 @@
 from router import Router
 from application import Application
-### HELLO WORLD
-#
-# headers
-# body
-# get
-# post
-# route + params
-# body params
-
-
-# headers and body
 from http_utils import Response
 
 async def home(r):
@@ -21,27 +10,25 @@ async def home(r):
 
 
 # get route + params
-async def welcome(r):
-    return "Welcome {}".format(arg1)
+async def welcome(r, name):
+    return "Welcome {}".format(name)
 
 # post route + body param
 async def parse_form(r):
     if r.method == 'GET':
         return 'form'
     else:
-        name = r.body_params.get('name', '')
-        password = r.body_params.get('password', '')
+        name = r.body.get('name', '')[0]
+        password = r.body.get('password', '')[0]
 
         return "{0}:{1}".format(name, password)
 
 ## application = router + http server
-
 router = Router()
 router.add_routes({
-    r'/': home,
     r'/welcome/{name}': welcome,
-    r'/login': parse_form})
+    r'/': home,
+    r'/login': parse_form,})
 
-# add app to loop?
 app = Application(router)
 app.start_server()

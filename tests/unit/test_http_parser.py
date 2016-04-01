@@ -17,28 +17,35 @@ class TestHTTPParser(t.TestCase):
              'Content-Type: application/x-www-form-urlencoded\r\n'
              'Content-Length: 10\r\n\r\n12=45&78=9'), encoding='ascii')
 
+        self.r = Request()
+
     def test_short_get_parse(self):
-        r = Request()
         short_get = bytearray('gEt / http/1.1\r\n\r\n', encoding='utf-8')
-        http_parser.parse_into(r, short_get)
-        self.assertTrue(r.finished)
-        self.assertEqual(r.path, '/')
-        self.assertDictEqual(r.headers, {})
+        http_parser.parse_into(self.r, short_get)
+        self.assertTrue(self.r.finished)
+        self.assertEqual(self.r.path, '/')
+        self.assertDictEqual(self.r.headers, {})
 
     def test_get_parse(self):
-        r = Request()
-        http_parser.parse_into(r, self.get_r)
-        self.assertTrue(r.finished)
-        self.assertEqual(r.path, '/test.html')
-        self.assertEqual(r.query_params, {b'test': [b'1']})
-        self.assertEqual(r.headers, {'content-type': 'text'})
+        http_parser.parse_into(self.r, self.get_r)
+        self.assertTrue(self.r.finished)
+        self.assertEqual(self.r.path, '/test.html')
+        self.assertEqual(self.r.query_params, {'test': ['1']})
+        self.assertEqual(self.r.headers, {'content-type': 'text'})
 
     def test_post_parse(self):
-        r = Request()
-        http_parser.parse_into(r, self.post_r)
-        self.assertTrue(r.finished)
-        self.assertEqual(r.body_raw, bytearray(b'12=45&78=9'))
-        self.assertEqual(r.body, {b'12': [b'45'], b'78': [b'9']})
+        http_parser.parse_into(self.r, self.post_r)
+        self.assertTrue(self.r.finished)
+        self.assertEqual(self.r.body_raw, bytearray(b'12=45&78=9'))
+        self.assertEqual(self.r.body, {'12': ['45'], '78': ['9']})
+
+    def test_uniform_method(self):
+        short_get = bytearray(
+            b'gEt / http/1.1\r\n\r\nContent-Type: text/plain')
+        http_parser.parse_into(self.r, short_get)
+        self.assertEqual(self.r.method, 'GET')
+
+
 
 if __name__ == '__main__':
     t.main()
