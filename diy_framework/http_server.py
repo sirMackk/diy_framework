@@ -32,26 +32,29 @@ class HTTPConnection(object):
         self._reader = reader
         self._writer = writer
         self._buffer = bytearray()
-        self._c_timeout = None
+        self._conn_timeout = None
         self.request = Request()
 
 
     async def handle_request(self):
-        while not self.request.finished:
-            self._reset_c_timeout()
-            try:
-                await self.process_data(await self._reader.read(1024))
-            except (NotFoundException,
-                    BadRequestException) as e:
-                self.error_reply(e.code, body=Response.reason_phrases[e.code])
-                break
-            except Exception as e:
-                logging.error(e)
-                logging.error(e.__traceback__)
-                self.error_reply(500, body=Response.reason_phrases[500])
-                break
-        if self.request.finished:
-            await self.reply()
+        try:
+            while not self.request.finished and not self._reader.at_eof():
+                data = await self._reader.read(1024)
+                if data:
+                    self._reset_conn_timeout()
+                    await self.process_data(data)
+            if self.request.finished:
+                await self.reply()
+            elif self._reader.at_eof():
+                raise BadRequestException()
+        except (NotFoundException,
+                BadRequestException) as e:
+            self.error_reply(e.code, body=Response.reason_phrases[e.code])
+        except Exception as e:
+            logging.error(e)
+            logging.error(e.__traceback__)
+            self.error_reply(500, body=Response.reason_phrases[500])
+
         self.close_connection()
 
 
@@ -63,7 +66,7 @@ class HTTPConnection(object):
 
     def close_connection(self):
         logging.debug('Closing connection')
-        self._cancel_c_timeout()
+        self._cancel_conn_timeout()
         self._writer.close()
 
     def error_reply(self, code, body=''):
@@ -84,14 +87,15 @@ class HTTPConnection(object):
         self._writer.write(response.to_bytes())
         await self._writer.drain()
 
-    def _throw_timeout(self):
-        raise TimeoutException
+    def _conn_timeout_close(self):
+        self.error_reply(500, 'timeout')
+        self.close_connection()
 
-    def _reset_c_timeout(self, timeout=TIMEOUT):
-        self._cancel_c_timeout()
-        self._c_timeout = self.loop.call_later(
-            timeout, self._throw_timeout)
+    def _reset_conn_timeout(self, timeout=TIMEOUT):
+        self._cancel_conn_timeout()
+        self._conn_timeout = self.loop.call_later(
+            timeout, self._conn_timeout_close)
 
-    def _cancel_c_timeout(self):
-        if self._c_timeout:
-            self._c_timeout.cancel()
+    def _cancel_conn_timeout(self):
+        if self._conn_timeout:
+            self._conn_timeout.cancel()
