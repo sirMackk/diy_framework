@@ -14,7 +14,6 @@ TIMEOUT = 5
 
 class HTTPServer(object):
     def __init__(self, router, http_parser, loop):
-        logging.info('initing server')
         self.router = router
         self.http_parser = http_parser
         self.loop = loop
@@ -36,10 +35,8 @@ class HTTPConnection(object):
         self._c_timeout = None
         self.request = Request()
 
-        logging.info('initing connection')
 
     async def handle_request(self):
-        logging.info('initing request')
         while not self.request.finished:
             self._reset_c_timeout()
             try:
@@ -59,14 +56,12 @@ class HTTPConnection(object):
 
 
     async def data_received(self, data):
-        logging.info("data received")
         self._buffer.extend(data)
 
         self._buffer = self.http_parser.parse_into(
             self.request, self._buffer)
 
     def close_connection(self):
-        logging.info("closing connection")
         self._cancel_c_timeout()
         self._writer.close()
 
@@ -76,14 +71,10 @@ class HTTPConnection(object):
         self._writer.drain()
 
     async def reply(self):
-        logging.info('replying')
         request = self.request
-        logging.info('getting handler')
         handler = self.router.get_handler(request.path)
-        logging.info('getting response')
 
         response = await handler.handle(request)
-        logging.info('got response: {0}'.format(response))
 
         if not isinstance(response, Response):
             response = Response(code=200, body=response)
@@ -95,12 +86,10 @@ class HTTPConnection(object):
         raise TimeoutException
 
     def _reset_c_timeout(self, timeout=TIMEOUT):
-        logging.info("resetting timeout {}".format(timeout))
         self._cancel_c_timeout()
         self._c_timeout = self.loop.call_later(
             timeout, self._throw_timeout)
 
     def _cancel_c_timeout(self):
-        logging.info('cancelling timeout')
         if self._c_timeout:
             self._c_timeout.cancel()
