@@ -11,6 +11,14 @@ from .exceptions import (
 from . import http_parser
 from .http_server import HTTPServer
 
+logger = logging.getLogger(__name__)
+basic_logger_config = {
+    'format': '%(asctime)s [%(levelname)s] %(message)s',
+    'level': logging.INFO,
+    'filename': None
+}
+logging.basicConfig(**basic_logger_config)
+
 class App(object):
     def __init__(self,
                  router,
@@ -27,18 +35,7 @@ class App(object):
         self._connection_handler = None
         self._loop = None
 
-        self.initialize_logging(level=log_level)
-
-
-    def initialize_logging(self, **log_config):
-        basic_logging_config = {
-            'format': '%(asctime)s [%(levelname)s] %(message)s',
-            'level': logging.DEBUG,
-            'filename': None
-        }
-
-        config = {**basic_logging_config, **log_config}
-        logging.basicConfig(**config)
+        logger.setLevel(log_level)
 
     def start_server(self):
         if not self._server:
@@ -52,29 +49,29 @@ class App(object):
                 reuse_port=True,
                 loop=self.loop)
 
-            logging.info("Starting server on {0}:{1}".format(
+            logger.info('Starting server on {0}:{1}'.format(
                 self.host, self.port))
             self.loop.run_until_complete(self._connection_handler)
 
             try:
                 self.loop.run_forever()
             except KeyboardInterrupt:
-                logging.info("Got signal, killing server")
+                logger.info('Got signal, killing server')
             except DiyFrameworkException as e:
-                logging.error("Critical framework failure:")
-                logging.error(e.__traceback__)
+                logger.error('Critical framework failure:')
+                logger.error(e.__traceback__)
             finally:
                 self.loop.close()
         else:
-            logging.info("Server already started - {0}".format(self))
+            logger.info('Server already started - {0}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
         if self._connection_handler:
-            return "{0} - Listening on: {1}:{2}".format(
+            return '{0} - Listening on: {1}:{2}'.format(
                 cls, self.host, self.port)
         else:
-            return "{0} - Not started".format(cls)
+            return '{0} - Not started'.format(cls)
 
 
 class HandlerWrapper(object):
@@ -96,29 +93,33 @@ class Router(object):
             self.add_route(route, fn)
 
     def add_route(self, path, handler):
-        compiled_route = self.__class__.build_regexp(path)
+        # logger.debug('Adding handler for: {0}'.format(path))
+        compiled_route = self.__class__.build_route_regexp(path)
         if compiled_route not in self.routes:
             self.routes[compiled_route] = handler
         else:
             raise DuplicateRoute
 
     def get_handler(self, path):
-        logging.debug('Getting handler for: {0}'.format(path))
+        logger.debug('Getting handler for: {0}'.format(path))
         for route, handler in self.routes.items():
             path_params = self.__class__.match_path(route, path)
             if path_params is not None:
+                logger.debug('Got handler for: {0}'.format(path))
                 wrapped_handler = HandlerWrapper(handler, path_params)
                 return wrapped_handler
 
         raise NotFoundException()
 
     @classmethod
-    def build_regexp(cls, regexp_str):
+    def build_route_regexp(cls, regexp_str):
         def named_groups(matchobj):
             return '(?P<{0}>[a-zA-Z0-9_-]+)'.format(matchobj.group(1))
 
         re_str = re.sub(r'{([a-zA-Z0-9_-]+)}', named_groups, regexp_str)
-        return re.compile('^' + re_str + '$')
+        re_str = ''.join(('^', re_str, '$',))
+        # logger.debug('Compiling "{0}" regexp'.format(re_str))
+        return re.compile(re_str)
 
     @classmethod
     def match_path(cls, route, path):

@@ -40,7 +40,7 @@ class HTTPConnection(object):
         while not self.request.finished:
             self._reset_c_timeout()
             try:
-                await self.data_received(await self._reader.read(1024))
+                await self.process_data(await self._reader.read(1024))
             except (NotFoundException,
                     BadRequestException) as e:
                 self.error_reply(e.code, body=Response.reason_phrases[e.code])
@@ -55,13 +55,14 @@ class HTTPConnection(object):
         self.close_connection()
 
 
-    async def data_received(self, data):
+    async def process_data(self, data):
         self._buffer.extend(data)
 
         self._buffer = self.http_parser.parse_into(
             self.request, self._buffer)
 
     def close_connection(self):
+        logging.debug('Closing connection')
         self._cancel_c_timeout()
         self._writer.close()
 
@@ -71,6 +72,7 @@ class HTTPConnection(object):
         self._writer.drain()
 
     async def reply(self):
+        logging.debug('Replying to request')
         request = self.request
         handler = self.router.get_handler(request.path)
 

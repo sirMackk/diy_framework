@@ -20,23 +20,23 @@ class TestRouter(t.TestCase):
     def test_transform_route_into_regexp(self):
         route = r'/path/{id}'
         expected_regexp_str = r'^/path/(?P<id>[a-zA-Z0-9_-]+)$'
-        regexp_obj = self.router.build_regexp(route)
+        regexp_obj = self.router.build_route_regexp(route)
         self.assertEqual(expected_regexp_str, regexp_obj.pattern)
 
     def test_route_regexp_no_vars(self):
-        route = Router.build_regexp(r'/path')
+        route = Router.build_route_regexp(r'/path')
         path = r'/path'
         path_params = Router.match_path(route, path)
         self.assertDictEqual(path_params, {})
 
     def test_route_regexp_one_var(self):
-        route = Router.build_regexp(r'/path/{var1}')
+        route = Router.build_route_regexp(r'/path/{var1}')
         path = r'/path/12'
         path_params = Router.match_path(route, path)
         self.assertDictEqual({'var1': '12'}, path_params)
 
     def test_route_regexp_multiple_vars(self):
-        route = Router.build_regexp(r'/path/{var1}/edit/{var2}')
+        route = Router.build_route_regexp(r'/path/{var1}/edit/{var2}')
         path = r'/path/12/edit/name'
         path_params = Router.match_path(route, path)
         self.assertDictEqual(
@@ -44,7 +44,7 @@ class TestRouter(t.TestCase):
             path_params)
 
     def test_add_multiple_routes(self):
-        route = Router.build_regexp(r'/{var1}/{var2}/{var3}')
+        route = Router.build_route_regexp(r'/{var1}/{var2}/{var3}')
         path = r'/1/12/123'
         path_params = Router.match_path(route, path)
         self.assertDictEqual(

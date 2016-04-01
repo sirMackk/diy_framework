@@ -1,6 +1,7 @@
 from diy_framework import App, Router
 from diy_framework.http_utils import Response
 
+
 async def home(r):
     rsp = Response()
     rsp.set_header('Content-Type', 'text/html')
