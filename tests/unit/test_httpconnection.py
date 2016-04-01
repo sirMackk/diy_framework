@@ -4,10 +4,10 @@ from unittest.mock import patch, MagicMock, Mock, ANY
 from collections import namedtuple
 
 
-import http_parser
-from http_server import HTTPConnection
-from exceptions import TimeoutException
-from router import Router
+from diy_framework import http_parser
+from diy_framework.http_server import HTTPConnection
+from diy_framework.exceptions import TimeoutException
+from diy_framework import Router
 
 
 HTTPServerMock = namedtuple('HTTPServerMock', 'router, http_parser, loop')

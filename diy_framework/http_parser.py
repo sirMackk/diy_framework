@@ -2,7 +2,7 @@ import re
 import json
 from urllib import parse
 
-from exceptions import BadRequestException
+from .exceptions import BadRequestException
 
 
 CRLF = b'\x0d\x0a'

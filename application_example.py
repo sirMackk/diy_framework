@@ -1,6 +1,5 @@
-from router import Router
-from application import Application
-from http_utils import Response
+from diy_framework import App, Router
+from diy_framework.http_utils import Response
 
 async def home(r):
     rsp = Response()
@@ -30,5 +29,5 @@ router.add_routes({
     r'/': home,
     r'/login': parse_form,})
 
-app = Application(router)
+app = App(router)
 app.start_server()

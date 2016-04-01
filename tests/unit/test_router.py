@@ -1,7 +1,7 @@
 import unittest as t
 
-from router import Router
-from exceptions import DuplicateRoute, NotFoundException
+from diy_framework import Router
+from diy_framework.exceptions import DuplicateRoute, NotFoundException
 
 
 class TestRouter(t.TestCase):

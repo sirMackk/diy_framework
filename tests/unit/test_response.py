@@ -1,6 +1,6 @@
 import unittest as t
 
-from http_utils import Response
+from diy_framework.http_utils import Response
 
 
 class TestResponse(t.TestCase):

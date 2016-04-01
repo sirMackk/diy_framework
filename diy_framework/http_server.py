@@ -1,8 +1,12 @@
 import logging
 import asyncio
 
-from http_utils import Request, Response
-from exceptions import BadRequestException, NotFoundException, TimeoutException
+from .http_utils import Request, Response
+from .exceptions import (
+    BadRequestException,
+    NotFoundException,
+    TimeoutException,
+)
 
 
 TIMEOUT = 5

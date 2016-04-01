@@ -1,7 +1,7 @@
 import unittest as t
 
-import http_parser
-from http_utils import Request
+from diy_framework import http_parser
+from diy_framework.http_utils import Request
 
 # add more edge case tests
 
