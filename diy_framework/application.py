@@ -20,12 +20,26 @@ basic_logger_config = {
 logging.basicConfig(**basic_logger_config)
 
 class App(object):
+    """
+    Contains the configuration needed to handle HTTP requests.
+    """
     def __init__(self,
                  router,
                  host='127.0.0.1',
                  port=8080,
                  log_level=logging.INFO,
                  http_parser=http_parser):
+        """
+        :param router: a collection of routes that implements the
+            'get_handler' interface.
+        :param host: a string that represents and ipv4 address associated
+            with the interface that will listen for incoming connections.
+        :param port: an int that represents the port on which to listen to.
+        :param log_level: an integer representing the logging level, using
+            default Python stdlib values.
+        :param http_parser: an object that implements 'parse_into' interface.
+            Responsible for parsing bytes into Requests objects.
+        """
         # create ip address class
         self.router = router
         self.http_parser = http_parser
@@ -38,6 +52,10 @@ class App(object):
         logger.setLevel(log_level)
 
     def start_server(self):
+        """
+        Starts listening asynchronously for TCP connections on a socket and
+        passes each connection to the HTTPServer.handle_connection method.
+        """
         if not self._server:
             self.loop = asyncio.get_event_loop()
             self._server = HTTPServer(self.router, self.http_parser, self.loop)
@@ -75,6 +93,10 @@ class App(object):
 
 
 class HandlerWrapper(object):
+    """
+    Helper class that calls a user defined handler with a Request as the first
+    argument and route defined parameters as kwargs.
+    """
     def __init__(self, handler, path_params):
         self.handler = handler
         self.path_params = path_params
@@ -85,6 +107,9 @@ class HandlerWrapper(object):
 
 
 class Router(object):
+    """
+    Container used to add and match a group of routes.
+    """
     def __init__(self):
         self.routes = {}
 
@@ -93,6 +118,14 @@ class Router(object):
             self.add_route(route, fn)
 
     def add_route(self, path, handler):
+        """
+        Creates a path:function pair for later retrieval by path. The
+        path is turned into a regular expression.
+
+        :param path: A string that matches a URL path.
+        :param handler: An async function that accepts a request
+            and returns a string or Response object.
+        """
         # logger.debug('Adding handler for: {0}'.format(path))
         compiled_route = self.__class__.build_route_regexp(path)
         if compiled_route not in self.routes:
@@ -101,6 +134,13 @@ class Router(object):
             raise DuplicateRoute
 
     def get_handler(self, path):
+        """
+        Retrieves the correct async function to process a request.
+
+        :param path: path part of an HTTP request.
+        :return: an function that accepts a request and returns a string or
+            Response object.
+        """
         logger.debug('Getting handler for: {0}'.format(path))
         for route, handler in self.routes.items():
             path_params = self.__class__.match_path(route, path)
@@ -113,6 +153,14 @@ class Router(object):
 
     @classmethod
     def build_route_regexp(cls, regexp_str):
+        """
+        Turns a string into a compiled regular expression. Parses '{}' into
+        named groups ie. '/path/{variable}' is turned into
+        '/path/(?P<variable>[a-zA-Z0-9_-]+)'.
+
+        :param regexp_str: a string representing a URL path.
+        :return: a compiled regular expression.
+        """
         def named_groups(matchobj):
             return '(?P<{0}>[a-zA-Z0-9_-]+)'.format(matchobj.group(1))
 
@@ -123,6 +171,15 @@ class Router(object):
 
     @classmethod
     def match_path(cls, route, path):
+        """
+        Utility function that returns URL parameters if a path matches a route
+        or None if it doesn't.
+
+        :param route: a compiled regexp that represents a route.
+        :param path: a URL path to be matched against the route.
+        :return: Either a dict of URL param:value pairs if path matches the
+            route else None.
+        """
         match = route.match(path)
         try:
             return match.groupdict()
