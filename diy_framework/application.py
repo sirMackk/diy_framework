@@ -126,7 +126,6 @@ class Router(object):
         :param handler: An async function that accepts a request
             and returns a string or Response object.
         """
-        # logger.debug('Adding handler for: {0}'.format(path))
         compiled_route = self.__class__.build_route_regexp(path)
         if compiled_route not in self.routes:
             self.routes[compiled_route] = handler
@@ -166,7 +165,6 @@ class Router(object):
 
         re_str = re.sub(r'{([a-zA-Z0-9_-]+)}', named_groups, regexp_str)
         re_str = ''.join(('^', re_str, '$',))
-        # logger.debug('Compiling "{0}" regexp'.format(re_str))
         return re.compile(re_str)
 
     @classmethod
@@ -184,4 +182,4 @@ class Router(object):
         try:
             return match.groupdict()
         except AttributeError:
-            return
+            return None
