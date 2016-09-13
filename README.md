@@ -1,6 +1,6 @@
 ### What is this?
 
-It's a DIY asynchronous microframework project to further explore Python35+, software architecture and a few other interesting things.
+It's a DIY asynchronous microframework project to further explore Python35+, software architecture, and a few other interesting things. It is composed of a simple HTTP/1.1 async server and the actual framework.
 
 Here are some of the things it demonstrates:
 
@@ -15,6 +15,18 @@ Here's the inspiration behind this project:
 - [Ruby Midwest 2011 - Architecture: The Lost Years by Uncle Bob][6]
 - [Ruby Conf 12 - Boundaries by Gary Bernhardt][7]
 - [Refactoring Code that Accesses External Services][8]
+
+**This is not production grade code.**
+
+It implements only a small subset of HTTP/1.1, it has not been profiled and optimized, and doesn't have any facilities to defend against common web attacks.
+
+However, because it's so small, it can be studied to see how an actual framework works.
+
+### Running
+
+To run the example application, just execute it with a Python3.5 interpreter:
+
+    python application_example.py
 
 
 ### LICENSE
